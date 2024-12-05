@@ -15,7 +15,7 @@ type VersePropsType = {
     onClick: () => void;
 }
 
-const facebookCaption = "My verse for today’s journey | SelahVie https://selahvie-backend.onrender.com/";
+const facebookCaption = "My verse for today’s journey | SelahVie https://selahvie.life/";
 
 export default function Verse({ reference, text, image, onClick }: VersePropsType) {
     const [url, setUrl] = useState<string | null>(null);
