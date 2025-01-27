@@ -7,7 +7,6 @@
         "default_icon": "SelahVie-logo.png"
     },
     "permissions": [
-        "sidePanel",
         "tabs",
         "storage",
         "alarms",
