@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-    baseURL: 'https://selahvie-backend.onrender.com/api',
+    baseURL: 'https://api.selahvie.life/api',
     // timeout: 5000,
     headers: {
         'Accept': 'application/json, text/plain, */*',
