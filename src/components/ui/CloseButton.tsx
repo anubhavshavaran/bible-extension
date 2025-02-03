@@ -9,8 +9,15 @@ export default function CloseButton({ className }: CloseButtonPropsType) {
     function handleClose() {
         chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
             const activeTab = tabs[0];
-            chrome.tabs.sendMessage(activeTab.id ?? 0, { action: 'removeSidebar' });
-            await chrome.storage.local.set({ isSidebarOpen: false });
+            const tabId = activeTab.id ?? 0;
+
+            chrome.tabs.sendMessage(tabId, { action: 'removeSidebar' }).catch(() => {});
+
+            const storedState = await chrome.storage.local.get('isSidebarOpenPerTab');
+            const isSidebarOpenPerTab = storedState.isSidebarOpenPerTab || {};
+
+            isSidebarOpenPerTab[tabId] = false;
+            await chrome.storage.local.set({ isSidebarOpenPerTab });
         });
     }
 

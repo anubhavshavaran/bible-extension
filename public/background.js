@@ -1,16 +1,22 @@
-let isSidebarOpen = false;
+let isSidebarOpenPerTab = {};
 
-chrome.storage.local.get(['isSidebarOpen'], (result) => {
-  if (result.isSidebarOpen != undefined) {
-    isSidebarOpen = result.isSidebarOpen;
+chrome.storage.local.get(['isSidebarOpenPerTab'], (result) => {
+  if (result.isSidebarOpenPerTab) {
+    isSidebarOpenPerTab = result.isSidebarOpenPerTab;
   }
 });
 
-chrome.storage.onChanged.addListener((changes, namespace) => {
-  if (namespace === 'local' && changes.isSidebarOpen) {
-    isSidebarOpen = changes.isSidebarOpen.newValue;
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  const tabId = activeInfo.tabId;
+
+  const storedState = await chrome.storage.local.get('isSidebarOpenPerTab');
+  const isSidebarOpenPerTab = storedState.isSidebarOpenPerTab || {};
+
+  if (isSidebarOpenPerTab[tabId]) {
+    chrome.tabs.sendMessage(tabId, { action: 'createSidebar' }).catch(() => {});
   }
 });
+
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('alarm', {
@@ -25,31 +31,27 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 function injectSidebar(forceReopen = false) {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+  chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
     const activeTab = tabs[0];
+    const tabId = activeTab.id;
 
-    if (isSidebarOpen && forceReopen) {
-      chrome.tabs.sendMessage(activeTab.id, { action: 'removeSidebar' }, () => {
-        chrome.scripting.executeScript({
-          target: { tabId: activeTab.id },
-          files: ['injectSidebar.js']
-        }, async () => {
-          chrome.tabs.sendMessage(activeTab.id, { action: 'createSidebar' });
-          isSidebarOpen = true;
-          
-          await chrome.storage.local.set({ isSidebarOpen: true });
-        });
+    let sidebarState = (await chrome.storage.local.get('isSidebarOpenPerTab')).isSidebarOpenPerTab || {};
+    let isOpen = sidebarState[tabId] || false;
+
+    if (forceReopen || isOpen) {
+      chrome.tabs.sendMessage(tabId, { action: 'removeSidebar' }, async () => {
+        sidebarState[tabId] = false;
+        await chrome.storage.local.set({ isSidebarOpenPerTab: sidebarState });
       });
     } else {
-      chrome.scripting.executeScript({
-        target: { tabId: activeTab.id },
-        files: ['injectSidebar.js']
-      }, async () => {
-        chrome.tabs.sendMessage(activeTab.id, { action: isSidebarOpen ? 'removeSidebar' : 'createSidebar' });
-        isSidebarOpen = !isSidebarOpen;
-
-        await chrome.storage.local.set({ isSidebarOpen });
-      });
+      chrome.scripting.executeScript(
+        { target: { tabId }, files: ['injectSidebar.js'] },
+        async () => {
+          chrome.tabs.sendMessage(tabId, { action: 'createSidebar' });
+          sidebarState[tabId] = true;
+          await chrome.storage.local.set({ isSidebarOpenPerTab: sidebarState });
+        }
+      );
     }
   });
 }
